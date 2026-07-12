@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roadmaps          Roadmap[]
+  weekProgressUpdates WeekProgress[]
+  statusHistories   StatusHistory[]
+  learningLogs      LearningLog[]
+  evidenceItems     EvidenceItem[]
+  preferences       UserPreference?
+  accounts          Account[]
+  sessions          Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @default("")
+  access_token      String? @default("")
+  expires_at        Int?
+  token_type        String? @default("")
+  scope             String? @default("")
+  id_token          String? @default("")
+  session_state     String? @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PendingRegistration {
+  email        String   @id
+  name         String?
+  password     String
+  otpHash      String
+  otpExpiresAt DateTime
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Roadmap {
+  id              String    @id @default(cuid())
+  ownerId         String
+  name            String    @default("SQA Engineer Roadmap")
+  templateVersion String    @default("1.0")
+  startDate       DateTime?
+  primaryLanguage String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  owner      User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  phases     Phase[]
+  weeks      Week[]
+  milestones Milestone[]
+
+  @@unique([ownerId, name])
+}
+
+model Phase {
+  id        String @id @default(cuid())
+  roadmapId String
+  orderIndex Int
+  name      String
+  goal      String
+  startWeek Int
+  endWeek   Int
+
+  roadmap    Roadmap    @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  weeks      Week[]
+  milestones Milestone[]
+
+  @@unique([roadmapId, orderIndex])
+}
+
+model Week {
+  id               String    @id @default(cuid())
+  roadmapId        String
+  phaseId          String
+  targetIndex      Int
+  monthNumber      Int
+  focusArea        String
+  weekdayTasks     String
+  weekendMilestone String
+  scheduledStartDate DateTime?
+  scheduledEndDate   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  roadmap      Roadmap        @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  phase        Phase          @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  progress     WeekProgress?
+  statusHistory StatusHistory[]
+  learningLogs LearningLog[]
+  evidenceItems EvidenceItem[]
+
+  @@unique([roadmapId, targetIndex])
+  @@index([roadmapId, targetIndex])
+}
+
+model WeekProgress {
+  id                   String    @id @default(cuid())
+  weekId               String    @unique
+  status               String    @default("Not Started")
+  notes                String?
+  weekdayHours         Float?
+  weekendHours         Float?
+  completionConfirmedAt DateTime?
+  updatedById          String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  week      Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  updatedBy User @relation(fields: [updatedById], references: [id])
+}
+
+model StatusHistory {
+  id         String   @id @default(cuid())
+  weekId     String
+  actorId    String
+  fromStatus String?
+  toStatus   String
+  note       String?
+  changedAt  DateTime @default(now())
+
+  week  Week @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([weekId, changedAt(sort: Desc)])
+}
+
+model LearningLog {
+  id             String   @id @default(cuid())
+  weekId         String?
+  ownerId        String
+  entryDate      DateTime @default(now())
+  learnedText    String
+  difficultyText String?
+  insightText    String?
+  nextAction     String?
+  tags           String   @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  week  Week? @relation(fields: [weekId], references: [id], onDelete: SetNull)
+  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, entryDate(sort: Desc)])
+}
+
+model EvidenceItem {
+  id          String   @id @default(cuid())
+  weekId      String?
+  milestoneId String?
+  ownerId     String
+  type        String
+  title       String
+  url         String?
+  storageKey  String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  week      Week?      @relation(fields: [weekId], references: [id], onDelete: SetNull)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model Milestone {
+  id              String   @id @default(cuid())
+  roadmapId       String
+  phaseId         String?
+  name            String
+  description     String
+  targetWeekStart Int
+  targetWeekEnd   Int
+  status          String   @default("Not Started")
+  interviewFraming String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  roadmap  Roadmap       @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  phase    Phase?        @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  evidence EvidenceItem[]
+}
+
+model UserPreference {
+  userId              String @id
+  currentWeekOverride Int?
+  theme               String @default("system")
+  weekdayHourGoal     Float?
+  weekendHourGoal     Float?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
