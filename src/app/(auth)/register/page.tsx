@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { signIn } from "next-auth/react";
+import { Loader2 } from "lucide-react";
 
 const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
 
@@ -32,9 +33,7 @@ export default function RegisterPage() {
     }
 
     if (!strongPasswordPattern.test(password)) {
-      setError(
-        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
-      );
+      setError("Password must be at least 8 characters and include uppercase, lowercase, number, and special character.");
       setLoading(false);
       return;
     }
@@ -72,9 +71,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="shadow-xl">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Create Account</CardTitle>
+        <CardTitle className="text-2xl text-neutral-800 dark:text-neutral-200">
+          Create Account
+        </CardTitle>
         <CardDescription>Set up your SQA learning tracker</CardDescription>
       </CardHeader>
       <CardContent>
@@ -88,7 +89,7 @@ export default function RegisterPage() {
               name="name"
               type="text"
               required
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>
           <div className="space-y-2">
@@ -101,7 +102,7 @@ export default function RegisterPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>
           <div className="space-y-2">
@@ -116,9 +117,9 @@ export default function RegisterPage() {
               minLength={8}
               autoComplete="new-password"
               aria-describedby="password-requirements"
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-neutral-700 dark:bg-neutral-900"
             />
-            <p id="password-requirements" className="text-xs text-neutral-500">
+            <p id="password-requirements" className="text-xs text-neutral-500 dark:text-neutral-400">
               Use 8+ characters with uppercase, lowercase, number, and special character.
             </p>
           </div>
@@ -133,24 +134,29 @@ export default function RegisterPage() {
               required
               minLength={8}
               autoComplete="new-password"
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>
           {error && (
-            <p className="text-sm text-red-500" role="alert">
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
               {error}
             </p>
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Create Account"}
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-primary to-secondary text-white shadow-md transition-all hover:shadow-lg hover:brightness-110"
+            disabled={loading}
+          >
+            {loading ? (
+              <><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Creating account...</>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm text-neutral-500">
+        <p className="mt-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
           Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-700 dark:text-neutral-50"
-          >
+          <Link href="/login" className="font-medium text-primary underline underline-offset-4 hover:text-primary-light">
             Sign in
           </Link>
         </p>

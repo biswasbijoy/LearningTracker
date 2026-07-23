@@ -15,20 +15,30 @@ export async function POST(request: Request) {
       return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { weekId, type, title, url, storageKey, fileName, mimeType, fileSize, description } = parsed.data;
+    const { weekId, milestoneId, type, title, url, storageKey, fileName, mimeType, fileSize, description } = parsed.data;
 
-    if (!weekId) {
-      return Response.json({ error: "weekId is required" }, { status: 400 });
+    if (!weekId && !milestoneId) {
+      return Response.json({ error: "weekId or milestoneId is required" }, { status: 400 });
     }
 
-    const week = await prisma.week.findUnique({ where: { id: weekId } });
-    if (!week) {
-      return Response.json({ error: "Week not found" }, { status: 404 });
+    if (weekId) {
+      const week = await prisma.week.findUnique({ where: { id: weekId } });
+      if (!week) {
+        return Response.json({ error: "Week not found" }, { status: 404 });
+      }
+    }
+
+    if (milestoneId) {
+      const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
+      if (!milestone) {
+        return Response.json({ error: "Milestone not found" }, { status: 404 });
+      }
     }
 
     const evidence = await prisma.evidenceItem.create({
       data: {
-        weekId,
+        weekId: weekId ?? null,
+        milestoneId: milestoneId ?? null,
         ownerId: session.user.id,
         type,
         title,

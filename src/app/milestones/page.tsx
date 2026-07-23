@@ -2,18 +2,72 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/layout/app-shell";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle } from "lucide-react";
+import { MilestonesClient } from "./milestones-client";
 
 export const dynamic = "force-dynamic";
+
+type CheckFn = (
+  milestones: { status: string; name: string }[],
+  evidenceTypes: string[],
+  logCount: number,
+) => boolean;
+
+const PORTFOLIO_RULES: { key: string; label: string; check: CheckFn }[] = [
+  {
+    key: "framework",
+    label: "Automation Framework",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("Automation Framework") && m.status === "Completed"),
+  },
+  {
+    key: "api",
+    label: "API Testing",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("Phase 1 Console") && m.status === "Completed"),
+  },
+  {
+    key: "cicd",
+    label: "CI/CD Pipeline",
+    check: (ms, evidenceTypes) =>
+      ms.some((m) => m.name.includes("Automation Framework") && m.status === "Completed") ||
+      evidenceTypes.includes("pull-request"),
+  },
+  {
+    key: "performance",
+    label: "Performance Testing",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("Performance Report") && m.status === "Completed"),
+  },
+  {
+    key: "security",
+    label: "Security & DB Testing",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("Security") && m.status === "Completed"),
+  },
+  {
+    key: "ai-testing",
+    label: "AI/LLM Testing",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("AI/LLM") && m.status === "Completed"),
+  },
+  {
+    key: "documentation",
+    label: "Documentation",
+    check: (_ms, _evidenceTypes, logCount) =>
+      logCount >= 3,
+  },
+  {
+    key: "resume",
+    label: "Resume & LinkedIn",
+    check: (ms) =>
+      ms.some((m) => m.name.includes("Portfolio") && m.status === "Completed"),
+  },
+  {
+    key: "interviews",
+    label: "Mock Interviews",
+    check: () => false,
+  },
+];
 
 export default async function MilestonesPage() {
   const session = await auth();
@@ -25,151 +79,88 @@ export default async function MilestonesPage() {
 
   if (!roadmap) redirect("/dashboard");
 
-  const milestones = await prisma.milestone.findMany({
-    where: { roadmapId: roadmap.id },
-    include: {
-      phase: { select: { name: true, orderIndex: true } },
-      evidence: {
-        where: { ownerId: session.user.id },
-        select: { id: true, title: true, type: true, url: true },
+  const [milestones, phases, weeks, evidenceItems, logCount] = await Promise.all([
+    prisma.milestone.findMany({
+      where: { roadmapId: roadmap.id },
+      include: {
+        evidence: {
+          where: { ownerId: session.user.id },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            url: true,
+            storageKey: true,
+            fileName: true,
+            mimeType: true,
+            fileSize: true,
+            description: true,
+          },
+        },
       },
-    },
-    orderBy: { targetWeekStart: "asc" },
-  });
+      orderBy: { targetWeekStart: "asc" },
+    }),
+    prisma.phase.findMany({
+      where: { roadmapId: roadmap.id },
+      orderBy: { orderIndex: "asc" },
+    }),
+    prisma.week.findMany({
+      where: { roadmapId: roadmap.id },
+      select: { id: true, targetIndex: true },
+      orderBy: { targetIndex: "asc" },
+    }),
+    prisma.evidenceItem.findMany({
+      where: { ownerId: session.user.id },
+      select: { type: true },
+    }),
+    prisma.learningLog.count({ where: { ownerId: session.user.id } }),
+  ]);
 
-  const portfolioChecklist = [
-    { label: "Automation Framework", key: "framework" },
-    { label: "API Testing", key: "api" },
-    { label: "CI/CD Pipeline", key: "cicd" },
-    { label: "Performance Testing", key: "performance" },
-    { label: "Security & DB Testing", key: "security" },
-    { label: "AI/LLM Testing", key: "ai-testing" },
-    { label: "Documentation", key: "documentation" },
-    { label: "Resume & LinkedIn", key: "resume" },
-    { label: "Mock Interviews", key: "interviews" },
-  ];
-
-  const phases = await prisma.phase.findMany({
-    where: { roadmapId: roadmap.id },
-    orderBy: { orderIndex: "asc" },
-  });
-
-  const milestonesByPhase = phases.map((phase) => ({
-    phase,
-    milestones: milestones.filter((m) => m.phaseId === phase.id),
+  const evidenceTypes = evidenceItems.map((e) => e.type);
+  const portfolio = PORTFOLIO_RULES.map((rule) => ({
+    key: rule.key,
+    label: rule.label,
+    completed: rule.check(milestones, evidenceTypes, logCount),
   }));
+
+  const serialized = {
+    milestones: milestones.map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      targetWeekStart: m.targetWeekStart,
+      targetWeekEnd: m.targetWeekEnd,
+      status: m.status,
+      phaseId: m.phaseId,
+      evidence: m.evidence.map((e) => ({
+        id: e.id,
+        type: e.type,
+        title: e.title,
+        url: e.url,
+        storageKey: e.storageKey,
+        fileName: e.fileName,
+        mimeType: e.mimeType,
+        fileSize: e.fileSize,
+        description: e.description,
+      })),
+    })),
+    phases: phases.map((p) => ({
+      id: p.id,
+      name: p.name,
+      orderIndex: p.orderIndex,
+    })),
+    weeks: weeks.map((w) => ({ id: w.id, targetIndex: w.targetIndex })),
+    portfolio,
+  };
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Milestones & Portfolio</h1>
-          <p className="text-neutral-500">Track your project milestones and portfolio readiness</p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Portfolio Readiness</CardTitle>
-            <CardDescription>
-              Complete these items to build a strong SQA portfolio
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {portfolioChecklist.map((item) => (
-                <div
-                  key={item.key}
-                  className="flex items-center gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
-                >
-                  <Circle className="h-4 w-4 shrink-0 text-neutral-300" />
-                  <span className="text-sm">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {milestonesByPhase.map(({ phase, milestones: phaseMilestones }) => {
-          const completed = phaseMilestones.filter((m) => m.status === "Completed").length;
-          const total = phaseMilestones.length;
-          const percentage = total > 0 ? (completed / total) * 100 : 0;
-
-          return (
-            <Card key={phase.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Phase {phase.orderIndex}: {phase.name}
-                </CardTitle>
-                <CardDescription>
-                  {completed} of {total} milestones completed
-                </CardDescription>
-                <Progress value={percentage} className="mt-2" />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {phaseMilestones.length === 0 ? (
-                  <p className="py-2 text-sm text-neutral-500">No milestones in this phase.</p>
-                ) : (
-                  phaseMilestones.map((m) => (
-                    <div
-                      key={m.id}
-                      className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            {m.status === "Completed" ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Circle className="h-4 w-4 text-neutral-300" />
-                            )}
-                            <h3 className="text-sm font-medium">{m.name}</h3>
-                            <Badge
-                              variant={
-                                m.status === "Completed"
-                                  ? "completed"
-                                  : m.status === "In Progress"
-                                    ? "inProgress"
-                                    : "notStarted"
-                              }
-                            >
-                              {m.status}
-                            </Badge>
-                          </div>
-                          <p className="mt-1 text-sm text-neutral-500">{m.description}</p>
-                          <p className="mt-1 text-xs text-neutral-400">
-                            Target: Weeks {m.targetWeekStart}–{m.targetWeekEnd}
-                          </p>
-                        </div>
-                      </div>
-                      {m.evidence.length > 0 && (
-                        <div className="mt-3 space-y-1 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-                          <p className="text-xs font-medium text-neutral-500">Evidence</p>
-                          {m.evidence.map((ev) => (
-                            <div key={ev.id} className="flex items-center gap-2 text-sm">
-                              <span className="text-xs text-neutral-400">{ev.type}</span>
-                              <span className="font-medium">{ev.title}</span>
-                              {ev.url && (
-                                <a
-                                  href={ev.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-500 hover:underline"
-                                >
-                                  Link
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <MilestonesClient
+        milestones={serialized.milestones}
+        phases={serialized.phases}
+        portfolio={serialized.portfolio}
+        weeks={serialized.weeks}
+      />
     </AppShell>
   );
 }
