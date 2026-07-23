@@ -50,10 +50,15 @@ export const evidenceSchema = z.object({
     "screenshot",
     "documentation",
     "url",
+    "file",
     "other",
   ]),
   title: z.string().min(1).max(500),
   url: z.string().url("Invalid URL").nullable().optional(),
+  storageKey: z.string().nullable().optional(),
+  fileName: z.string().nullable().optional(),
+  mimeType: z.string().nullable().optional(),
+  fileSize: z.number().int().positive().nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
 });
 

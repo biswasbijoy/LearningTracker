@@ -4,12 +4,9 @@ import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen } from "lucide-react";
+import { Search, BookOpen, ChevronDown, ChevronRight, FolderOpen, Folder } from "lucide-react";
 
 interface LogEntry {
   id: string;
@@ -32,10 +29,10 @@ export function LearningLogClient({ logs }: { logs: LogEntry[] }) {
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set());
 
   const filtered = useMemo(() => {
     let result = [...logs];
-
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -45,11 +42,9 @@ export function LearningLogClient({ logs }: { logs: LogEntry[] }) {
           l.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
-
     if (tagFilter) {
       result = result.filter((l) => l.tags.includes(tagFilter));
     }
-
     if (phaseFilter !== "all") {
       const [start, end] = phaseFilter.split("-").map(Number);
       result = result.filter((l) => {
@@ -57,9 +52,29 @@ export function LearningLogClient({ logs }: { logs: LogEntry[] }) {
         return l.weekTargetIndex >= start && l.weekTargetIndex <= end;
       });
     }
-
     return result;
   }, [logs, search, tagFilter, phaseFilter]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<number, { focusArea: string; logs: LogEntry[] }>();
+    for (const log of filtered) {
+      const weekNum = log.weekTargetIndex ?? 0;
+      if (!map.has(weekNum)) {
+        map.set(weekNum, { focusArea: log.weekFocusArea ?? "", logs: [] });
+      }
+      map.get(weekNum)!.logs.push(log);
+    }
+    return new Map([...map.entries()].sort((a, b) => b[0] - a[0]));
+  }, [filtered]);
+
+  function toggleWeek(weekNum: number) {
+    setExpandedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(weekNum)) next.delete(weekNum);
+      else next.add(weekNum);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -112,8 +127,8 @@ export function LearningLogClient({ logs }: { logs: LogEntry[] }) {
         ))}
       </div>
 
-      <div className="space-y-4">
-        {filtered.length === 0 ? (
+      <div className="space-y-3">
+        {grouped.size === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center py-12">
               <BookOpen className="mb-2 h-8 w-8 text-neutral-300" />
@@ -124,60 +139,82 @@ export function LearningLogClient({ logs }: { logs: LogEntry[] }) {
             </CardContent>
           </Card>
         ) : (
-          filtered.map((log) => (
-            <Card key={log.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base">{log.learnedText}</CardTitle>
-                    {log.weekTargetIndex && (
-                      <CardDescription>
-                        Week {log.weekTargetIndex}{log.weekFocusArea ? ` · ${log.weekFocusArea}` : ""}
-                      </CardDescription>
+          [...grouped.entries()].map(([weekNum, group]) => {
+            const isExpanded = expandedWeeks.has(weekNum) || search !== "" || tagFilter !== null;
+            return (
+              <Card key={weekNum} className="overflow-hidden">
+                <button
+                  onClick={() => toggleWeek(weekNum)}
+                  className="flex w-full items-center gap-3 p-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                >
+                  {isExpanded ? (
+                    <FolderOpen className="h-5 w-5 shrink-0 text-neutral-400" />
+                  ) : (
+                    <Folder className="h-5 w-5 shrink-0 text-neutral-400" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">
+                      {weekNum === 0 ? "Unassigned" : `Week ${weekNum}`}
+                    </p>
+                    {group.focusArea && (
+                      <p className="truncate text-xs text-neutral-500">{group.focusArea}</p>
                     )}
                   </div>
                   <span className="shrink-0 text-xs text-neutral-400">
-                    {new Date(log.entryDate).toLocaleDateString()}
+                    {group.logs.length} {group.logs.length === 1 ? "entry" : "entries"}
                   </span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {log.difficultyText && (
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      Difficulty:
-                    </span>{" "}
-                    {log.difficultyText}
-                  </p>
-                )}
-                {log.insightText && (
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      Insight:
-                    </span>{" "}
-                    {log.insightText}
-                  </p>
-                )}
-                {log.nextAction && (
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                      Next:
-                    </span>{" "}
-                    {log.nextAction}
-                  </p>
-                )}
-                {log.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {log.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-neutral-400" />
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="border-t border-neutral-200 dark:border-neutral-700">
+                    {group.logs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="border-b border-neutral-100 p-4 last:border-b-0 dark:border-neutral-800"
+                      >
+                        <div className="flex items-start justify-between">
+                          <p className="text-sm font-medium">{log.learnedText}</p>
+                          <span className="ml-2 shrink-0 text-xs text-neutral-400">
+                            {new Date(log.entryDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          {log.difficultyText && (
+                            <p className="text-xs text-neutral-500">
+                              <span className="font-medium">Difficulty:</span> {log.difficultyText}
+                            </p>
+                          )}
+                          {log.insightText && (
+                            <p className="text-xs text-neutral-500">
+                              <span className="font-medium">Insight:</span> {log.insightText}
+                            </p>
+                          )}
+                          {log.nextAction && (
+                            <p className="text-xs text-neutral-500">
+                              <span className="font-medium">Next:</span> {log.nextAction}
+                            </p>
+                          )}
+                        </div>
+                        {log.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {log.tags.map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

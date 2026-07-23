@@ -96,6 +96,10 @@ export interface EvidenceEntry {
   type: string;
   title: string;
   url: string | null;
+  storageKey: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
   description: string | null;
   createdAt: string;
 }

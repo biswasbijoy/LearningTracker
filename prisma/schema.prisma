@@ -180,6 +180,9 @@ model EvidenceItem {
   title       String
   url         String?
   storageKey  String?
+  fileName    String?
+  mimeType    String?
+  fileSize    Int?
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -22,7 +22,18 @@ import {
   AlertTriangle,
   Plus,
   Trash2,
+  Loader2,
+  Download,
+  Eye,
+  File,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import type { WeekDetail } from "@/types";
 
 interface WeekDetailProps {
@@ -39,6 +50,22 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showAddLog, setShowAddLog] = useState(false);
+  const [logText, setLogText] = useState("");
+  const [logDifficulty, setLogDifficulty] = useState("");
+  const [logInsight, setLogInsight] = useState("");
+  const [logNextAction, setLogNextAction] = useState("");
+  const [logTags, setLogTags] = useState<string[]>([]);
+  const [logSubmitting, setLogSubmitting] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const [showAddEvidence, setShowAddEvidence] = useState(false);
+  const [evTitle, setEvTitle] = useState("");
+  const [evUrl, setEvUrl] = useState("");
+  const [evType, setEvType] = useState("url");
+  const [evDescription, setEvDescription] = useState("");
+  const [evSubmitting, setEvSubmitting] = useState(false);
+  const [evError, setEvError] = useState<string | null>(null);
+  const [evFile, setEvFile] = useState<File | null>(null);
 
   const statusColors: Record<string, string> = {
     "Not Started": "bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300",
@@ -87,6 +114,111 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
 
   async function handleConfirmedComplete() {
     await saveProgress("Completed");
+  }
+
+  async function addEvidence(e: FormEvent) {
+    e.preventDefault();
+    setEvSubmitting(true);
+    setEvError(null);
+    try {
+      let storageKey: string | null = null;
+      let fileName: string | null = null;
+      let mimeType: string | null = null;
+      let fileSize: number | null = null;
+
+      if (evFile) {
+        const fd = new FormData();
+        fd.set("file", evFile);
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(errData.error || "File upload failed");
+        }
+        const uploadData = await uploadRes.json();
+        storageKey = uploadData.storageKey;
+        fileName = uploadData.fileName;
+        mimeType = uploadData.mimeType;
+        fileSize = uploadData.fileSize;
+      }
+
+      const res = await fetch("/api/evidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekId: week.id,
+          title: evTitle,
+          url: evUrl || null,
+          type: evType,
+          storageKey,
+          fileName,
+          mimeType,
+          fileSize,
+          description: evDescription || null,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save evidence");
+      }
+      setShowAddEvidence(false);
+      setEvTitle("");
+      setEvUrl("");
+      setEvType("url");
+      setEvDescription("");
+      setEvFile(null);
+      setEvError(null);
+      router.refresh();
+    } catch (err) {
+      setEvError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setEvSubmitting(false);
+    }
+  }
+
+  const ALL_TAGS = [
+    "risk", "framework", "API", "SQL", "CI/CD", "performance",
+    "security", "AI QA", "communication", "interview",
+  ];
+
+  async function addLearningLog(e: FormEvent) {
+    e.preventDefault();
+    setLogSubmitting(true);
+    setLogError(null);
+    try {
+      const res = await fetch("/api/learning-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekId: week.id,
+          learnedText: logText,
+          difficultyText: logDifficulty || null,
+          insightText: logInsight || null,
+          nextAction: logNextAction || null,
+          tags: logTags,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || "Failed to save reflection");
+      }
+      setShowAddLog(false);
+      setLogText("");
+      setLogDifficulty("");
+      setLogInsight("");
+      setLogNextAction("");
+      setLogTags([]);
+      router.refresh();
+    } catch (err) {
+      setLogError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLogSubmitting(false);
+    }
+  }
+
+  function toggleLogTag(tag: string) {
+    setLogTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   }
 
   async function deleteEvidence(id: string) {
@@ -179,15 +311,17 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
               {week.learningLogs.length === 0 ? (
                 <div className="py-4 text-center">
                   <p className="text-sm text-neutral-500">No reflections yet.</p>
-                  <Link href={`/learning-log?weekId=${week.id}`}>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      <Plus className="mr-1 h-4 w-4" />
-                      Write reflection
-                    </Button>
-                  </Link>
+                  <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowAddLog(true)}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Write reflection
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
+                  <Button variant="outline" size="sm" className="mb-2" onClick={() => setShowAddLog(true)}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Write reflection
+                  </Button>
                   {week.learningLogs.map((log) => (
                     <div
                       key={log.id}
@@ -227,31 +361,62 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
               {week.evidenceItems.length === 0 ? (
                 <div className="py-4 text-center">
                   <p className="text-sm text-neutral-500">No evidence attached.</p>
-                  <Button variant="outline" size="sm" className="mt-2">
+                  <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowAddEvidence(true)}>
                     <Plus className="mr-1 h-4 w-4" />
                     Add evidence
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="mb-2" onClick={() => setShowAddEvidence(true)}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Add evidence
+                  </Button>
                   {week.evidenceItems.map((ev) => (
                     <div
                       key={ev.id}
                       className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700"
                     >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{ev.title}</p>
-                        {ev.url && (
-                          <a
-                            href={ev.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline"
-                          >
-                            {ev.url}
-                          </a>
+                      <div className="flex min-w-0 items-center gap-3">
+                        {ev.storageKey && (
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-neutral-100 dark:bg-neutral-800">
+                            <File className="h-4 w-4 text-neutral-500" />
+                          </div>
                         )}
-                        <p className="text-xs text-neutral-400">{ev.type}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{ev.title}</p>
+                          {ev.storageKey ? (
+                            <div className="mt-0.5 flex items-center gap-2">
+                              <span className="text-xs text-neutral-500">{ev.fileName}</span>
+                              <a
+                                href={`/api/files/${ev.storageKey}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 text-xs text-blue-500 hover:underline"
+                              >
+                                <Eye className="h-3 w-3" />
+                                View
+                              </a>
+                              <a
+                                href={`/api/files/${ev.storageKey}?download=true`}
+                                className="inline-flex items-center gap-0.5 text-xs text-blue-500 hover:underline"
+                              >
+                                <Download className="h-3 w-3" />
+                                Download
+                              </a>
+                            </div>
+                          ) : ev.url ? (
+                            <a
+                              href={ev.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-500 hover:underline"
+                            >
+                              {ev.url}
+                            </a>
+                          ) : null}
+                          <p className="text-xs text-neutral-400">{ev.type}</p>
+                        </div>
                       </div>
                       <button
                         onClick={() => deleteEvidence(ev.id)}
@@ -378,6 +543,199 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
           )}
         </div>
       </div>
+
+      <Dialog open={showAddLog} onOpenChange={setShowAddLog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Write reflection</DialogTitle>
+            <DialogDescription>What did you learn this week?</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={addLearningLog} className="space-y-4">
+            <div>
+              <label htmlFor="log-text" className="mb-1 block text-sm font-medium">
+                What did you learn?
+              </label>
+              <textarea
+                id="log-text"
+                value={logText}
+                onChange={(e) => setLogText(e.target.value)}
+                required
+                rows={3}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="I learned about..."
+              />
+            </div>
+            <div>
+              <label htmlFor="log-difficulty" className="mb-1 block text-sm font-medium">
+                Difficulty
+              </label>
+              <input
+                id="log-difficulty"
+                value={logDifficulty}
+                onChange={(e) => setLogDifficulty(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="e.g. Challenging but manageable"
+              />
+            </div>
+            <div>
+              <label htmlFor="log-insight" className="mb-1 block text-sm font-medium">
+                Insight
+              </label>
+              <textarea
+                id="log-insight"
+                value={logInsight}
+                onChange={(e) => setLogInsight(e.target.value)}
+                rows={2}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="Any key insight or realization"
+              />
+            </div>
+            <div>
+              <label htmlFor="log-next" className="mb-1 block text-sm font-medium">
+                Next action
+              </label>
+              <input
+                id="log-next"
+                value={logNextAction}
+                onChange={(e) => setLogNextAction(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="What will you do next?"
+              />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleLogTag(tag)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      logTags.includes(tag)
+                        ? "bg-neutral-900 text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-400"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {logError && (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">{logError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddLog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={logSubmitting}>
+                {logSubmitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                {logSubmitting ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddEvidence} onOpenChange={setShowAddEvidence}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add evidence</DialogTitle>
+            <DialogDescription>Link to your work or deliverables for this week.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={addEvidence} className="space-y-4">
+            <div>
+              <label htmlFor="ev-title" className="mb-1 block text-sm font-medium">
+                Title
+              </label>
+              <input
+                id="ev-title"
+                value={evTitle}
+                onChange={(e) => setEvTitle(e.target.value)}
+                required
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="What did you create?"
+              />
+            </div>
+            <div>
+              <label htmlFor="ev-type" className="mb-1 block text-sm font-medium">
+                Type
+              </label>
+              <select
+                id="ev-type"
+                value={evType}
+                onChange={(e) => {
+                  setEvType(e.target.value);
+                  if (e.target.value !== "file") setEvFile(null);
+                }}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+              >
+                <option value="url">URL</option>
+                <option value="repository">Repository</option>
+                <option value="pull-request">Pull Request</option>
+                <option value="report">Report</option>
+                <option value="screenshot">Screenshot</option>
+                <option value="documentation">Documentation</option>
+                <option value="file">File upload</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            {evType === "file" ? (
+              <div key="file-input">
+                <label htmlFor="ev-file" className="mb-1 block text-sm font-medium">
+                  File
+                </label>
+                <input
+                  id="ev-file"
+                  type="file"
+                  onChange={(e) => setEvFile(e.target.files?.[0] ?? null)}
+                  className="w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-neutral-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-neutral-200 dark:file:bg-neutral-700 dark:hover:file:bg-neutral-600"
+                />
+                <p className="mt-1 text-xs text-neutral-500">Max 50 MB</p>
+              </div>
+            ) : (
+              <div key="url-input">
+                <label htmlFor="ev-url" className="mb-1 block text-sm font-medium">
+                  URL
+                </label>
+                <input
+                  id="ev-url"
+                  type="url"
+                  value={evUrl}
+                  onChange={(e) => setEvUrl(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                  placeholder="https://github.com/..."
+                />
+              </div>
+            )}
+            <div>
+              <label htmlFor="ev-description" className="mb-1 block text-sm font-medium">
+                Description
+              </label>
+              <textarea
+                id="ev-description"
+                value={evDescription}
+                onChange={(e) => setEvDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:border-neutral-600 dark:bg-neutral-800"
+                placeholder="Optional notes about this evidence"
+              />
+            </div>
+            {evError && (
+              <p className="text-sm text-red-600 dark:text-red-400" role="alert">{evError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddEvidence(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={evSubmitting}>
+                {evSubmitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                {evSubmitting ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {showConfirm && (
         <div

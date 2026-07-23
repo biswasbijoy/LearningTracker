@@ -1,5 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { unlink } from "fs/promises";
+import path from "path";
 
 export async function DELETE(
   _request: Request,
@@ -19,6 +21,12 @@ export async function DELETE(
 
     if (!evidence || evidence.ownerId !== session.user.id) {
       return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (evidence.storageKey) {
+      try {
+        await unlink(path.join(process.cwd(), "uploads", "evidence", evidence.storageKey));
+      } catch { }
     }
 
     await prisma.evidenceItem.delete({ where: { id: evidenceId } });
