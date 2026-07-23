@@ -61,17 +61,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model PendingRegistration {
-  email        String   @id
-  name         String?
-  password     String
-  otpHash      String
-  otpExpiresAt DateTime
-  attempts     Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
 model Roadmap {
   id              String    @id @default(cuid())
   ownerId         String
