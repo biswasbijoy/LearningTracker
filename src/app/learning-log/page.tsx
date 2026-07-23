@@ -13,7 +13,7 @@ export default async function LearningLogPage() {
   const logs = await prisma.learningLog.findMany({
     where: { ownerId: session.user.id },
     include: {
-      week: { select: { targetIndex: true, focusArea: true } },
+      week: { select: { id: true, targetIndex: true, focusArea: true } },
     },
     orderBy: { entryDate: "desc" },
     take: 100,
@@ -33,6 +33,7 @@ export default async function LearningLogPage() {
         return [];
       }
     })(),
+    weekId: l.week?.id ?? null,
     weekTargetIndex: l.week?.targetIndex ?? null,
     weekFocusArea: l.week?.focusArea ?? null,
   }));

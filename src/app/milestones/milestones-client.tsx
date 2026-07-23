@@ -251,25 +251,21 @@ export function MilestonesClient({ milestones, phases, portfolio, weeks }: Miles
             Track your project milestones and portfolio readiness
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-neutral-600 dark:text-neutral-400">Milestones</span>
-            </div>
-            <span className="text-lg font-bold text-neutral-800 dark:text-neutral-200">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 shadow-sm sm:px-4 sm:py-2 dark:border-neutral-700 dark:bg-neutral-900">
+            <Trophy className="h-4 w-4 shrink-0 text-amber-500" />
+            <span className="whitespace-nowrap text-xs text-neutral-600 sm:text-sm dark:text-neutral-400">Milestones</span>
+            <span className="text-base font-bold text-neutral-800 sm:text-lg dark:text-neutral-200">
               {completedMilestones}/{totalMilestones}
             </span>
-            <span className="text-sm text-neutral-400">
+            <span className="hidden text-xs text-neutral-400 sm:inline">
               ({Math.round(overallPercentage)}%)
             </span>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-500" />
-              <span className="text-sm text-neutral-600 dark:text-neutral-400">Portfolio</span>
-            </div>
-            <span className="text-lg font-bold text-neutral-800 dark:text-neutral-200">
+          <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 shadow-sm sm:px-4 sm:py-2 dark:border-neutral-700 dark:bg-neutral-900">
+            <Sparkles className="h-4 w-4 shrink-0 text-purple-500" />
+            <span className="whitespace-nowrap text-xs text-neutral-600 sm:text-sm dark:text-neutral-400">Portfolio</span>
+            <span className="text-base font-bold text-neutral-800 sm:text-lg dark:text-neutral-200">
               {portfolioCompleted}/{portfolio.length}
             </span>
           </div>

@@ -320,7 +320,7 @@ export function DashboardClient({ summary }: { summary: DashboardData }) {
                             </p>
                           )}
                         </div>
-                        <ChevronRight className="mt-1.5 h-4 w-4 shrink-0 text-amber-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-amber-600" />
+                        <ChevronRight className="mt-1.5 h-4 w-4 shrink-0 text-amber-300 dark:text-amber-600" />
                       </div>
                     </div>
                   </Link>

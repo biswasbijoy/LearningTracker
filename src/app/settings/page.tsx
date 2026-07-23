@@ -33,14 +33,7 @@ export default async function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-neutral-500">Manage your profile and preferences</p>
-        </div>
-
-        <SettingsClient settings={serialized} />
-      </div>
+      <SettingsClient settings={serialized} />
     </AppShell>
   );
 }

@@ -284,45 +284,47 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
         </span>
       </nav>
 
-      <div className={`rounded-xl border-l-4 bg-gradient-to-r ${statusBarColor} from-white to-white p-6 shadow-md dark:from-neutral-900 dark:to-neutral-900`}
+      <div className={`rounded-xl border-l-4 bg-gradient-to-r ${statusBarColor} from-white to-white p-4 shadow-md sm:p-6 dark:from-neutral-900 dark:to-neutral-900`}
         style={{ borderLeftColor: activeStatus.border.replace("border-l-", "#") }}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
             <Link
               href="/roadmap"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-white transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white transition-colors hover:bg-neutral-100 sm:h-9 sm:w-9 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
               aria-label="Back to roadmap"
             >
               <ArrowLeft className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
             </Link>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg font-bold text-neutral-900 sm:text-2xl dark:text-neutral-50">
                   Week {week.targetIndex}
                 </h1>
                 <Badge variant={({ "Not Started": "notStarted", "In Progress": "inProgress", Completed: "completed", Blocked: "blocked" } as const)[status] ?? "default"}>
                   {status}
                 </Badge>
               </div>
-              <p className="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="mt-0.5 truncate text-sm text-neutral-500 dark:text-neutral-400">
                 {week.focusArea} · Phase: {week.phase.name}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             {prevWeek && (
               <Link href={`/roadmap/week/${prevWeek.id}`}>
-                <Button variant="outline" size="sm" className="gap-1 text-xs">
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Week {prevWeek.targetIndex}
+                <Button variant="outline" size="sm" className="gap-1 text-[11px] sm:text-xs">
+                  <ChevronLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline">Week {prevWeek.targetIndex}</span>
+                  <span className="sm:hidden">{prevWeek.targetIndex}</span>
                 </Button>
               </Link>
             )}
             {nextWeek && (
               <Link href={`/roadmap/week/${nextWeek.id}`}>
-                <Button variant="outline" size="sm" className="gap-1 text-xs">
-                  Week {nextWeek.targetIndex}
-                  <ChevronRight className="h-3.5 w-3.5" />
+                <Button variant="outline" size="sm" className="gap-1 text-[11px] sm:text-xs">
+                  <span className="hidden sm:inline">Week {nextWeek.targetIndex}</span>
+                  <span className="sm:hidden">{nextWeek.targetIndex}</span>
+                  <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </Button>
               </Link>
             )}
@@ -330,8 +332,8 @@ export function WeekDetailClient({ week, prevWeek, nextWeek }: WeekDetailProps) 
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-6 md:col-span-1 lg:col-span-2">
           <Card className="overflow-hidden shadow-md">
             <div className="h-1.5 bg-gradient-to-r from-primary to-secondary" />
             <CardHeader>
